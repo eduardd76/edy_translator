@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talk to Virtual Edy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 1100px;
+            width: 100%;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 32px;
+            opacity: 0.9;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.4rem;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .status {
+            margin-bottom: 24px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .status.connecting {
+            background: rgba(255, 193, 7, 0.2);
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.25);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.25);
+        }
+
+        button {
+            background: #fff;
+            color: #667eea;
+            border: none;
+            padding: 16px 46px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        button.disconnect {
+            background: #f44336;
+            color: #fff;
+        }
+
+        .wave-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .wave-container.active {
+            display: block;
+        }
+
+        .wave {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            height: 40px;
+        }
+
+        .wave-bar {
+            width: 4px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.5); opacity: 0.6; }
+            50% { transform: scaleY(1.4); opacity: 1; }
+        }
+
+        .transcript-layout {
+            display: none;
+            margin-top: 32px;
+            gap: 20px;
+        }
+
+        .transcript-layout.active {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .transcript-panel {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            min-height: 260px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            opacity: 0.85;
+            letter-spacing: 0.5px;
+        }
+
+        .transcript-scroll {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-right: 6px;
+        }
+
+        .transcript-item {
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            line-height: 1.45;
+            font-size: 0.98rem;
+            text-align: left;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+
+        .transcript-item.partial {
+            opacity: 0.75;
+            font-style: italic;
+        }
+
+        .recommendation-panel {
+            margin-top: 28px;
+            background: rgba(20, 20, 40, 0.35);
+            border-radius: 16px;
+            padding: 22px;
+            text-align: left;
+            display: none;
+        }
+
+        .recommendation-panel.active {
+            display: block;
+        }
+
+        .recommendation-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .recommendation-content ul {
+            list-style: disc;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .recommendation-content li {
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                padding: 30px;
+            }
+
+            .transcript-layout.active {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="avatar">VT</div>
+        <h1>Edy Translator</h1>
+        <p class="subtitle">Real-time German to English translation with smart recommendations.</p>
+
+        <div id="status" class="status">Waiting to connect...</div>
+
+        <button id="connectBtn" onclick="toggleConnection()">Start Conversation</button>
+
+        <div class="wave-container" id="waveContainer">
+            <div class="wave">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+            </div>
+        </div>
+
+        <div class="transcript-layout" id="transcriptLayout">
+            <div class="transcript-panel">
+                <div class="panel-title">German Conversation</div>
+                <div class="transcript-scroll" id="germanTranscript"></div>
+            </div>
+            <div class="transcript-panel">
+                <div class="panel-title">English Translation</div>
+                <div class="transcript-scroll" id="englishTranscript"></div>
+            </div>
+        </div>
+
+        <div class="recommendation-panel" id="recommendationPanel">
+            <div class="recommendation-title">AI Recommendations</div>
+            <div class="recommendation-content" id="recommendations">
+                <p>Recommendations will appear here once the conversation starts.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.8/dist/livekit-client.umd.min.js"></script>
+    <script>
+        let room = null;
+        let isConnected = false;
+
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const waveContainer = document.getElementById('waveContainer');
+        const transcriptLayout = document.getElementById('transcriptLayout');
+        const germanTranscript = document.getElementById('germanTranscript');
+        const englishTranscript = document.getElementById('englishTranscript');
+        const recommendationPanel = document.getElementById('recommendationPanel');
+        const recommendationContent = document.getElementById('recommendations');
+
+        let partialGermanItem = null;
+        let partialEnglishItem = null;
+
+        function updateStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function createTranscriptItem(text, partial = false) {
+            const item = document.createElement('div');
+            item.className = `transcript-item${partial ? ' partial' : ''}`;
+            item.textContent = text;
+            return item;
+        }
+
+        function ensureTranscriptVisibility() {
+            transcriptLayout.classList.add('active');
+        }
+
+        function appendOrUpdateTranscript(panel, text, isFinal, partialRef) {
+            if (!text) {
+                return partialRef;
+            }
+
+            if (!isFinal) {
+                if (!partialRef) {
+                    partialRef = createTranscriptItem(text, true);
+                    panel.appendChild(partialRef);
+                } else {
+                    partialRef.textContent = text;
+                }
+                panel.scrollTop = panel.scrollHeight;
+                return partialRef;
+            }
+
+            if (partialRef) {
+                partialRef.textContent = text;
+                partialRef.classList.remove('partial');
+                partialRef = null;
+            } else {
+                const item = createTranscriptItem(text, false);
+                panel.appendChild(item);
+            }
+
+            while (panel.children.length > 60) {
+                panel.removeChild(panel.firstChild);
+            }
+
+            panel.scrollTop = panel.scrollHeight;
+            return partialRef;
+        }
+
+        function renderTranscript(payload) {
+            ensureTranscriptVisibility();
+            const { german, english, final } = payload;
+            partialGermanItem = appendOrUpdateTranscript(
+                germanTranscript,
+                german,
+                final,
+                partialGermanItem
+            );
+            partialEnglishItem = appendOrUpdateTranscript(
+                englishTranscript,
+                english,
+                final,
+                partialEnglishItem
+            );
+        }
+
+        function renderRecommendations(content) {
+            if (!content) {
+                return;
+            }
+
+            recommendationPanel.classList.add('active');
+            const lines = content.split('\n').map(line => line.trim()).filter(Boolean);
+
+            if (!lines.length) {
+                recommendationContent.innerHTML = '<p>No recommendations available yet.</p>';
+                return;
+            }
+
+            const list = document.createElement('ul');
+            for (const line of lines) {
+                const li = document.createElement('li');
+                li.textContent = line.replace(/^-\s*/, '');
+                list.appendChild(li);
+            }
+
+            recommendationContent.innerHTML = '';
+            recommendationContent.appendChild(list);
+        }
+
+        function resetViews() {
+            germanTranscript.innerHTML = '';
+            englishTranscript.innerHTML = '';
+            partialGermanItem = null;
+            partialEnglishItem = null;
+            transcriptLayout.classList.remove('active');
+            recommendationPanel.classList.remove('active');
+            recommendationContent.innerHTML = '<p>Recommendations will appear here once the conversation starts.</p>';
+        }
+
+        async function toggleConnection() {
+            if (isConnected) {
+                await disconnect();
+            } else {
+                await connect();
+            }
+        }
+
+        async function connect() {
+            try {
+                updateStatus('Connecting...', 'connecting');
+                connectBtn.disabled = true;
+
+                const response = await fetch('/.netlify/functions/get-token', {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get token');
+                }
+
+                const { token, url } = await response.json();
+
+                room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                room.on(LivekitClient.RoomEvent.Connected, () => {
+                    updateStatus('Connected! Start speaking in German...', 'connected');
+                    waveContainer.classList.add('active');
+                    connectBtn.textContent = 'End Conversation';
+                    connectBtn.className = 'disconnect';
+                    connectBtn.disabled = false;
+                    isConnected = true;
+                });
+
+                room.on(LivekitClient.RoomEvent.Disconnected, () => {
+                    updateStatus('Disconnected', '');
+                    waveContainer.classList.remove('active');
+                    connectBtn.textContent = 'Start Conversation';
+                    connectBtn.className = '';
+                    connectBtn.disabled = false;
+                    isConnected = false;
+                    resetViews();
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                    if (track.kind === LivekitClient.Track.Kind.Audio) {
+                        const audioEl = track.attach();
+                        audioEl.style.display = 'none';
+                        document.body.appendChild(audioEl);
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant) => {
+                    try {
+                        const data = JSON.parse(new TextDecoder().decode(payload));
+                        if (data.type === 'transcript') {
+                            renderTranscript(data);
+                        } else if (data.type === 'recommendations') {
+                            renderRecommendations(data.content);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing data payload:', error);
+                    }
+                });
+
+                await room.connect(url, token);
+                await room.localParticipant.setMicrophoneEnabled(true);
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus('Connection failed. Please try again.', 'error');
+                connectBtn.disabled = false;
+                resetViews();
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                room = null;
+            }
+            resetViews();
+        }
+    </script>
+</body>
+</html>

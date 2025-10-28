@@ -1,0 +1,8 @@
+{
+  "name": "edy-voice-agent",
+  "version": "1.0.0",
+  "description": "Virtual Edy voice agent frontend",
+  "dependencies": {
+    "livekit-server-sdk": "^2.0.0"
+  }
+}

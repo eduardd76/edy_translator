@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>German Translator - Local Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        .setup-section {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.disconnect {
+            background: #f44336;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        .transcript-layout {
+            display: none;
+            margin-top: 30px;
+            gap: 20px;
+        }
+
+        .transcript-layout.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .transcript-panel {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            opacity: 0.85;
+        }
+
+        .transcript-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            line-height: 1.5;
+        }
+
+        .transcript-item.partial {
+            opacity: 0.7;
+            font-style: italic;
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .transcript-layout.active {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 German Translator - Local Test</h1>
+        <p class="subtitle">Real-time German to English Translation</p>
+
+        <div class="setup-section">
+            <h3>Quick Setup (from your .env file):</h3>
+            <div class="form-group">
+                <label>LiveKit URL:</label>
+                <input type="text" id="livekitUrl" placeholder="wss://test-p61uftno.livekit.cloud" value="wss://test-p61uftno.livekit.cloud">
+                <p class="help-text">From your .env file: LIVEKIT_URL</p>
+            </div>
+            <div class="form-group">
+                <label>API Key:</label>
+                <input type="text" id="apiKey" placeholder="APIX5jniKDEaESA" value="APIX5jniKDEaESA">
+                <p class="help-text">From your .env file: LIVEKIT_API_KEY</p>
+            </div>
+            <div class="form-group">
+                <label>API Secret:</label>
+                <input type="password" id="apiSecret" placeholder="Your API Secret" value="vLqg4keXeeJbwOHbnapUc7hekyeTTBxIjMudAe5YIxZN">
+                <p class="help-text">From your .env file: LIVEKIT_API_SECRET</p>
+            </div>
+        </div>
+
+        <div class="status" id="status">Ready to connect</div>
+
+        <button id="connectBtn" onclick="toggleConnection()">Start Conversation</button>
+
+        <div class="transcript-layout" id="transcriptLayout">
+            <div class="transcript-panel">
+                <div class="panel-title">🇩🇪 German (You)</div>
+                <div id="germanTranscript"></div>
+            </div>
+            <div class="transcript-panel">
+                <div class="panel-title">🇬🇧 English (Translation)</div>
+                <div id="englishTranscript"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.8/dist/livekit-client.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-server-sdk@2.0.0/dist/index.mjs" type="module"></script>
+    <script type="module">
+        import { AccessToken } from 'https://cdn.jsdelivr.net/npm/livekit-server-sdk@2.0.0/dist/index.mjs';
+
+        let room = null;
+        let isConnected = false;
+
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const transcriptLayout = document.getElementById('transcriptLayout');
+        const germanTranscript = document.getElementById('germanTranscript');
+        const englishTranscript = document.getElementById('englishTranscript');
+
+        let partialGermanItem = null;
+        let partialEnglishItem = null;
+
+        function updateStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function createTranscriptItem(text, partial = false) {
+            const item = document.createElement('div');
+            item.className = `transcript-item${partial ? ' partial' : ''}`;
+            item.textContent = text;
+            return item;
+        }
+
+        function appendOrUpdateTranscript(panel, text, isFinal, partialRef) {
+            if (!text) return partialRef;
+
+            if (!isFinal) {
+                if (!partialRef) {
+                    partialRef = createTranscriptItem(text, true);
+                    panel.appendChild(partialRef);
+                } else {
+                    partialRef.textContent = text;
+                }
+                panel.scrollTop = panel.scrollHeight;
+                return partialRef;
+            }
+
+            if (partialRef) {
+                partialRef.textContent = text;
+                partialRef.classList.remove('partial');
+                partialRef = null;
+            } else {
+                const item = createTranscriptItem(text, false);
+                panel.appendChild(item);
+            }
+
+            panel.scrollTop = panel.scrollHeight;
+            return partialRef;
+        }
+
+        function renderTranscript(payload) {
+            transcriptLayout.classList.add('active');
+            const { german, english, final } = payload;
+
+            partialGermanItem = appendOrUpdateTranscript(
+                germanTranscript,
+                german,
+                final,
+                partialGermanItem
+            );
+
+            partialEnglishItem = appendOrUpdateTranscript(
+                englishTranscript,
+                english,
+                final,
+                partialEnglishItem
+            );
+        }
+
+        window.toggleConnection = async function() {
+            if (isConnected) {
+                await disconnect();
+            } else {
+                await connect();
+            }
+        }
+
+        async function connect() {
+            try {
+                updateStatus('Connecting...', 'connecting');
+                connectBtn.disabled = true;
+
+                const livekitUrl = document.getElementById('livekitUrl').value;
+                const apiKey = document.getElementById('apiKey').value;
+                const apiSecret = document.getElementById('apiSecret').value;
+
+                if (!livekitUrl || !apiKey || !apiSecret) {
+                    throw new Error('Please fill in all LiveKit credentials');
+                }
+
+                // Generate token locally (browser-based)
+                const roomName = `test-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+                const participantName = `user-${Math.random().toString(36).substring(7)}`;
+
+                // Note: In production, token generation should happen server-side
+                // For local testing, we'll create a simple room connection
+                const token = await generateToken(apiKey, apiSecret, roomName, participantName);
+
+                room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                room.on(LivekitClient.RoomEvent.Connected, () => {
+                    updateStatus('✅ Connected! Start speaking in German...', 'connected');
+                    connectBtn.textContent = 'End Conversation';
+                    connectBtn.className = 'disconnect';
+                    connectBtn.disabled = false;
+                    isConnected = true;
+                });
+
+                room.on(LivekitClient.RoomEvent.Disconnected, () => {
+                    updateStatus('Disconnected', '');
+                    connectBtn.textContent = 'Start Conversation';
+                    connectBtn.className = '';
+                    connectBtn.disabled = false;
+                    isConnected = false;
+                    germanTranscript.innerHTML = '';
+                    englishTranscript.innerHTML = '';
+                    transcriptLayout.classList.remove('active');
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                    if (track.kind === LivekitClient.Track.Kind.Audio) {
+                        const audioEl = track.attach();
+                        audioEl.style.display = 'none';
+                        document.body.appendChild(audioEl);
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant) => {
+                    try {
+                        const data = JSON.parse(new TextDecoder().decode(payload));
+                        if (data.type === 'transcript') {
+                            renderTranscript(data);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing data:', error);
+                    }
+                });
+
+                await room.connect(livekitUrl, token);
+                await room.localParticipant.setMicrophoneEnabled(true);
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                connectBtn.disabled = false;
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                room = null;
+            }
+        }
+
+        async function generateToken(apiKey, apiSecret, roomName, identity) {
+            // Simple JWT generation for testing
+            // In production, this MUST be done server-side!
+            const header = {
+                alg: 'HS256',
+                typ: 'JWT'
+            };
+
+            const now = Math.floor(Date.now() / 1000);
+            const payload = {
+                video: {
+                    room: roomName,
+                    roomJoin: true,
+                    canPublish: true,
+                    canSubscribe: true
+                },
+                iat: now,
+                nbf: now,
+                exp: now + 3600,
+                iss: apiKey,
+                sub: identity,
+                jti: identity
+            };
+
+            // Encode to base64url
+            const base64url = (str) => {
+                return btoa(String.fromCharCode.apply(null, new Uint8Array(str)))
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=/g, '');
+            };
+
+            const headerEncoded = base64url(new TextEncoder().encode(JSON.stringify(header)));
+            const payloadEncoded = base64url(new TextEncoder().encode(JSON.stringify(payload)));
+
+            // Sign with HMAC-SHA256
+            const key = await crypto.subtle.importKey(
+                'raw',
+                new TextEncoder().encode(apiSecret),
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+
+            const signature = await crypto.subtle.sign(
+                'HMAC',
+                key,
+                new TextEncoder().encode(`${headerEncoded}.${payloadEncoded}`)
+            );
+
+            const signatureEncoded = base64url(signature);
+
+            return `${headerEncoded}.${payloadEncoded}.${signatureEncoded}`;
+        }
+    </script>
+</body>
+</html>

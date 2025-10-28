@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>German Translator Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: #fff;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.disconnect {
+            background: #f44336;
+        }
+
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .status.connected {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        .status.connecting {
+            background: rgba(255, 193, 7, 0.3);
+        }
+
+        .transcript-layout {
+            display: none;
+            margin-top: 30px;
+            gap: 20px;
+        }
+
+        .transcript-layout.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .transcript-panel {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            opacity: 0.85;
+        }
+
+        .transcript-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            line-height: 1.5;
+        }
+
+        .transcript-item.partial {
+            opacity: 0.7;
+            font-style: italic;
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .debug {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .debug-line {
+            margin-bottom: 5px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .transcript-layout.active {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 German Translator Test</h1>
+        <p class="subtitle">Real-time German to English Translation</p>
+
+        <div class="status" id="status">Ready to connect</div>
+
+        <button id="connectBtn" onclick="toggleConnection()">Start Conversation</button>
+
+        <div class="transcript-layout" id="transcriptLayout">
+            <div class="transcript-panel">
+                <div class="panel-title">🇩🇪 German (You Speak)</div>
+                <div id="germanTranscript"></div>
+            </div>
+            <div class="transcript-panel">
+                <div class="panel-title">🇬🇧 English (Translation)</div>
+                <div id="englishTranscript"></div>
+            </div>
+        </div>
+
+        <div class="debug" id="debug">
+            <strong>Debug Log:</strong>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.8/dist/livekit-client.umd.min.js"></script>
+    <script>
+        let room = null;
+        let isConnected = false;
+
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const transcriptLayout = document.getElementById('transcriptLayout');
+        const germanTranscript = document.getElementById('germanTranscript');
+        const englishTranscript = document.getElementById('englishTranscript');
+        const debugEl = document.getElementById('debug');
+
+        let partialGermanItem = null;
+        let partialEnglishItem = null;
+
+        function log(message) {
+            console.log(message);
+            const line = document.createElement('div');
+            line.className = 'debug-line';
+            line.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            debugEl.appendChild(line);
+            debugEl.scrollTop = debugEl.scrollHeight;
+        }
+
+        function updateStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            log(`Status: ${message}`);
+        }
+
+        function createTranscriptItem(text, partial = false) {
+            const item = document.createElement('div');
+            item.className = `transcript-item${partial ? ' partial' : ''}`;
+            item.textContent = text;
+            return item;
+        }
+
+        function appendOrUpdateTranscript(panel, text, isFinal, partialRef) {
+            if (!text) return partialRef;
+
+            if (!isFinal) {
+                if (!partialRef) {
+                    partialRef = createTranscriptItem(text, true);
+                    panel.appendChild(partialRef);
+                } else {
+                    partialRef.textContent = text;
+                }
+                panel.scrollTop = panel.scrollHeight;
+                return partialRef;
+            }
+
+            if (partialRef) {
+                partialRef.textContent = text;
+                partialRef.classList.remove('partial');
+                partialRef = null;
+            } else {
+                const item = createTranscriptItem(text, false);
+                panel.appendChild(item);
+            }
+
+            panel.scrollTop = panel.scrollHeight;
+            return partialRef;
+        }
+
+        function renderTranscript(payload) {
+            transcriptLayout.classList.add('active');
+            const { german, english, final } = payload;
+
+            log(`Transcript: ${final ? 'FINAL' : 'partial'} - DE: ${german.substring(0, 30)}...`);
+
+            partialGermanItem = appendOrUpdateTranscript(
+                germanTranscript,
+                german,
+                final,
+                partialGermanItem
+            );
+
+            partialEnglishItem = appendOrUpdateTranscript(
+                englishTranscript,
+                english,
+                final,
+                partialEnglishItem
+            );
+        }
+
+        async function toggleConnection() {
+            if (isConnected) {
+                await disconnect();
+            } else {
+                await connect();
+            }
+        }
+
+        async function connect() {
+            try {
+                log('Starting connection...');
+                updateStatus('🔄 Connecting...', 'connecting');
+                connectBtn.disabled = true;
+
+                // Get token from local server
+                log('Requesting token from /get-token...');
+                const response = await fetch('http://localhost:8000/get-token', {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Token request failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                log(`Got token for room: ${data.roomName}`);
+
+                if (!data.token || !data.url) {
+                    throw new Error('Invalid token response');
+                }
+
+                // Create LiveKit room
+                log('Creating LiveKit room...');
+                room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                // Set up event listeners
+                room.on(LivekitClient.RoomEvent.Connected, () => {
+                    log('✅ Connected to LiveKit room!');
+                    updateStatus('✅ Connected! Start speaking in German...', 'connected');
+                    connectBtn.textContent = 'End Conversation';
+                    connectBtn.className = 'disconnect';
+                    connectBtn.disabled = false;
+                    isConnected = true;
+                });
+
+                room.on(LivekitClient.RoomEvent.Disconnected, () => {
+                    log('Disconnected from room');
+                    updateStatus('Disconnected', '');
+                    connectBtn.textContent = 'Start Conversation';
+                    connectBtn.className = '';
+                    connectBtn.disabled = false;
+                    isConnected = false;
+                    germanTranscript.innerHTML = '';
+                    englishTranscript.innerHTML = '';
+                    transcriptLayout.classList.remove('active');
+                });
+
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                    log(`Participant joined: ${participant.identity}`);
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+                    if (track.kind === LivekitClient.Track.Kind.Audio) {
+                        const audioEl = track.attach();
+                        audioEl.style.display = 'none';
+                        document.body.appendChild(audioEl);
+                        log('Audio track attached for playback');
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    try {
+                        const data = JSON.parse(new TextDecoder().decode(payload));
+                        log(`Data received: ${data.type}`);
+
+                        if (data.type === 'transcript') {
+                            renderTranscript(data);
+                        } else if (data.type === 'recommendations') {
+                            log(`Recommendations: ${data.content.substring(0, 50)}...`);
+                        }
+                    } catch (error) {
+                        log(`Error parsing data: ${error.message}`);
+                        console.error('Error parsing data:', error);
+                    }
+                });
+
+                // Connect to room
+                log(`Connecting to: ${data.url}`);
+                await room.connect(data.url, data.token);
+                log('Room connected, enabling microphone...');
+
+                // Enable microphone
+                await room.localParticipant.setMicrophoneEnabled(true);
+                log('Microphone enabled!');
+
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`);
+                console.error('Connection error:', error);
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                connectBtn.disabled = false;
+            }
+        }
+
+        async function disconnect() {
+            log('Disconnecting...');
+            if (room) {
+                await room.disconnect();
+                room = null;
+            }
+        }
+
+        // Log on page load
+        log('Page loaded and ready');
+        log('Make sure Python agent is running: python agent.py dev');
+    </script>
+</body>
+</html>
