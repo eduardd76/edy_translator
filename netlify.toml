@@ -1,6 +1,12 @@
 [build]
+  command = "echo 'No build needed - static site with Node.js functions'"
   functions = "netlify/functions"
   publish = "."
+
+[build.environment]
+  # Tell Netlify to skip Python and use Node.js only
+  NODE_VERSION = "18"
+  PYTHON_VERSION = ""
 
 [[redirects]]
   from = "/*"
