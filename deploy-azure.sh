@@ -38,6 +38,7 @@ az acr build \
     --registry $ACR_NAME \
     --image edy-agent:latest \
     --file Dockerfile \
+    --build-arg REQUIREMENTS_PATH=azure/requirements.txt \
     .
 
 # Get ACR credentials
